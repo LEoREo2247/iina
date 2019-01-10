@@ -66,6 +66,26 @@ class InspectorWindowController: NSWindowController, NSTableViewDelegate, NSTabl
   @IBOutlet weak var edispFPSField: NSTextField!
   @IBOutlet weak var watchTableView: NSTableView!
   @IBOutlet weak var deleteButton: NSButton!
+  
+  @IBOutlet weak var metaTitleField: NSTextField!
+  @IBOutlet weak var metaArtistField: NSTextField!
+  @IBOutlet weak var metaAlbumField: NSTextField!
+  @IBOutlet weak var metaAlbumArtistField: NSTextField!
+  @IBOutlet weak var metaGenreField: NSTextField!
+  @IBOutlet weak var metaDateField: NSTextField!
+  @IBOutlet weak var metaTrackField: NSTextField!
+  @IBOutlet weak var metaTrackOfField: NSTextField!
+  @IBOutlet weak var metaTrackOutOfField: NSTextField!
+  @IBOutlet weak var metaDiscField: NSTextField!
+  @IBOutlet weak var metaDiscOfField: NSTextField!
+  @IBOutlet weak var metaDiscOutOfField: NSTextField!
+  @IBOutlet weak var metaDescriptionField: NSTextField!
+  @IBOutlet weak var metaLanguageField: NSTextField!
+  @IBOutlet weak var metaCopyrightField: NSTextField!
+  @IBOutlet weak var metaPublisherField: NSTextField!
+  @IBOutlet weak var metaEncoderField: NSTextField!
+  @IBOutlet weak var metaImageView: NSImageView!
+    
 
   override func windowDidLoad() {
     super.windowDidLoad()
@@ -101,6 +121,64 @@ class InspectorWindowController: NSWindowController, NSTableViewDelegate, NSTabl
     DispatchQueue.main.async {
 
       if !dynamic {
+        
+        // metadata
+        
+        let metadata = self.toDictionary(text: controller.getString(MPVProperty.metadata) ?? "{}")
+        
+        let metadataLabels: [String: NSTextField] = [
+          "title": self.metaTitleField,
+          "artist": self.metaArtistField,
+          "album": self.metaAlbumField,
+          "album_artist": self.metaAlbumArtistField,
+          "genre": self.metaGenreField,
+          "date": self.metaDateField,
+          "track": self.metaTrackField,
+          "disc": self.metaDiscField,
+          "comment": self.metaDescriptionField,
+          "language": self.metaLanguageField,
+          "copyright": self.metaCopyrightField,
+          "publisher": self.metaPublisherField,
+          "encoder": self.metaEncoderField
+        ]
+        
+        self.metaTrackOfField.isHidden = true
+        self.metaTrackOutOfField.stringValue = ""
+        self.metaDiscOfField.isHidden = true
+        self.metaDiscOutOfField.stringValue = ""
+        
+        for (k, v) in metadataLabels {
+          let value = metadata?[k]
+          if k == "track" {
+            let matches = self.matchRegex(input: value ?? "", pattern: "[0-9]+")
+            if matches.count == 1 {
+              v.stringValue = matches[0]
+            } else if matches.count == 2 {
+              v.stringValue = matches[0]
+              self.metaTrackOfField.isHidden = false
+              self.metaTrackOutOfField.stringValue = matches[1]
+            } else {
+              v.stringValue = ""
+            }
+          } else if k == "disc" {
+            let matches = self.matchRegex(input: value ?? "", pattern: "[0-9]+")
+            print(matches)
+            if matches.count == 1 {
+              v.stringValue = matches[0]
+            } else if matches.count == 2 {
+              v.stringValue = matches[0]
+              self.metaDiscOfField.isHidden = false
+              self.metaDiscOutOfField.stringValue = matches[1]
+            } else {
+              v.stringValue = ""
+            }
+          } else {
+            v.stringValue = value ?? ""
+          }
+          self.setLabelColor(v, by: value != nil)
+        }
+        
+        
 
         // string properties
 
@@ -128,6 +206,9 @@ class InspectorWindowController: NSWindowController, NSTableViewDelegate, NSTabl
           v.stringValue = value ?? "N/A"
           self.setLabelColor(v, by: value != nil)
         }
+        
+        let reader = MetadataReader.init()
+        reader.readMetadata(from: self.pathField.stringValue)
 
         // other properties
 
@@ -297,6 +378,34 @@ class InspectorWindowController: NSWindowController, NSTableViewDelegate, NSTabl
 
   private func saveWatchList() {
     Preference.set(watchProperties, for: .watchProperties)
+  }
+  
+  func toDictionary(text: String) -> [String: String]? {
+    if let data = text.data(using: .utf8) {
+      do {
+        var dict = try JSONSerialization.jsonObject(with: data, options: []) as? [String: String]
+        var newDict: [String: String] = [:]
+        for k in dict! {
+          newDict[k.key.lowercased()] = dict?[k.key]
+        }
+        return newDict
+      } catch {
+        return nil
+      }
+    }
+    return nil
+  }
+  
+  func matchRegex(input: String, pattern: String, options: NSRegularExpression.Options = []) -> [String] {
+    do {
+      let regex = try NSRegularExpression(pattern: pattern)
+      let results = regex.matches(in: input, range: NSRange(input.startIndex..., in: input))
+      return results.map {
+        String(input[Range($0.range, in: input)!])
+      }
+    } catch {
+      return []
+    }
   }
 
 }
