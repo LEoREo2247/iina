@@ -27,6 +27,11 @@ NSLog(@"Error when getting thumbnails: %@ (%d)", msg, ret);\
 return -1;\
 }
 
+#define CHECK(ret,msg) if (!(ret)) {\
+NSLog(@"Error when getting thumbnails: %@", msg);\
+return -1;\
+}
+
 @implementation FFThumbnail
 
 @end
@@ -138,6 +143,13 @@ return -1;\
   avcodec_parameters_to_context(pCodecCtx, pVideoStream->codecpar);
   pCodecCtx->time_base = pVideoStream->time_base;
 
+  if (pCodecCtx->pix_fmt < 0 || pCodecCtx->pix_fmt >= AV_PIX_FMT_NB) {
+    avcodec_free_context(&pCodecCtx);
+    avformat_close_input(&pFormatCtx);
+    NSLog(@"Error when getting thumbnails: Pixel format is null");
+    return -1;
+  }
+  
   ret = avcodec_open2(pCodecCtx, pCodec, &optionsDict);
   CHECK_SUCCESS(ret, @"Cannot open codec")
 
@@ -171,6 +183,7 @@ return -1;\
   CHECK_SUCCESS(ret, @"Cannot fill data for RGBA frame")
 
   // Create a sws context for converting color space and resizing
+  CHECK(pCodecCtx->pix_fmt != AV_PIX_FMT_NONE, @"Pixel format is none")
   struct SwsContext *sws_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt,
                                               pFrameRGB->width, pFrameRGB->height, pFrameRGB->format,
                                               SWS_BILINEAR,
@@ -310,7 +323,7 @@ return -1;\
   }
 }
 
-+ (double)probeVideoDurationForFile:(nonnull NSString *)file
++ (NSDictionary *)probeVideoInfoForFile:(nonnull NSString *)file
 {
   int ret;
   int64_t duration;
@@ -320,19 +333,27 @@ return -1;\
   AVFormatContext *pFormatCtx = NULL;
   ret = avformat_open_input(&pFormatCtx, cFilename, NULL, NULL);
   free(cFilename);
-  if (ret < 0) return -1;
+  if (ret < 0) return NULL;
 
   duration = pFormatCtx->duration;
   if (duration <= 0) {
     ret = avformat_find_stream_info(pFormatCtx, NULL);
-    if (ret < 0) return -1;
-    duration = pFormatCtx->duration;
+    if (ret < 0)
+      duration = -1;
+    else
+      duration = pFormatCtx->duration;
   }
+
+  NSMutableDictionary *info = [[NSMutableDictionary alloc] init];
+  info[@"@iina_duration"] = duration == -1 ? [NSNumber numberWithInt:-1] : [NSNumber numberWithDouble:(double)duration / AV_TIME_BASE];
+  AVDictionaryEntry *tag = NULL;
+  while ((tag = av_dict_get(pFormatCtx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
+    info[[NSString stringWithCString:tag->key encoding:NSUTF8StringEncoding]] = [NSString stringWithCString:tag->value encoding:NSUTF8StringEncoding];
 
   avformat_close_input(&pFormatCtx);
   avformat_free_context(pFormatCtx);
 
-  return (double)duration / AV_TIME_BASE;
+  return info;
 }
 
 @end

@@ -45,7 +45,7 @@ class OpenURLWindowController: NSWindowController, NSTextFieldDelegate, NSContro
     urlField.stringValue = ""
     usernameField.stringValue = ""
     passwordField.stringValue = ""
-    rememberPasswordCheckBox.state = .on
+    rememberPasswordCheckBox.state = .off
     urlStackView.setVisibilityPriority(.notVisible, for: httpPrefixTextField)
     window?.makeFirstResponder(urlField)
   }
@@ -56,7 +56,9 @@ class OpenURLWindowController: NSWindowController, NSTextFieldDelegate, NSContro
 
   @IBAction func openBtnAction(_ sender: Any) {
     if let url = getURL().url {
-      if rememberPasswordCheckBox.state == .on, let host = url.host {
+      if rememberPasswordCheckBox.state == .on,
+         let host = url.host,
+         !usernameField.stringValue.isEmpty {
         try? KeychainAccess.write(username: usernameField.stringValue,
                                   password: passwordField.stringValue,
                                   forService: .httpAuth,
@@ -74,7 +76,8 @@ class OpenURLWindowController: NSWindowController, NSTextFieldDelegate, NSContro
     guard !urlField.stringValue.isEmpty else { return (nil, false) }
     let username = usernameField.stringValue
     let password = passwordField.stringValue
-    guard var urlValue = urlField.stringValue.addingPercentEncoding(withAllowedCharacters: .urlAllowed) else {
+    let trimmedUrlString = urlField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard var urlValue = trimmedUrlString.addingPercentEncoding(withAllowedCharacters: .urlAllowed) else {
       return (nil, false)
     }
     var hasScheme = true

@@ -1,4 +1,4 @@
-/* 
+/*
   KeyBinding.strings
   iina
 
@@ -9,7 +9,7 @@
 "cmd.ignore" = "Ignorar";
 "cmd.seek" = "Busca";
 "cmd.revert-seek" = "Reverter Busca";
-"cmd.set" = "Set";
+"cmd.set" = "Configurar";
 "cmd.cycle" = "Ciclo";
 "cmd.cycle-values" = "Ciclo em";
 "cmd.add" = "Mudar";
@@ -53,6 +53,7 @@
 "iina.toggle-mirror" = "Alternar espelho";
 "iina.save-playlist" = "Salvar playlist atual";
 "iina.delete-current-file" = "Deletar arquivo atual";
+"iina.delete-current-file-hard" = "Excluir o arquivo atual diretamente sem mover para o lixo";
 "iina.find-online-subs" = "Encontrar legendas online";
 "iina.save-downloaded-sub" = "Salvar legenda baixada";
 
@@ -71,8 +72,8 @@
 "absolute" = "s";
 "absolute-percent" = "%";
 "relative-percent" = "%";
-"relative+exact" = "s (exact)";
-"relative-percent+exact" = "% (exact)";
+"relative+exact" = "s (exacto)";
+"relative-percent+exact" = "% (exacto)";
 "absolute+keyframe" = "s (keyframe)";
 "absolute-percent+keyframe" = "% (keyframe)";
 
@@ -99,18 +100,17 @@
 "opt.sub-pos" = "Posição da Legenda";
 "opt.sub-scale" = "Escala da Legenda";
 "opt.sub-visibility" = "Visibilidade da Legenda";
-"opt.sub-ass-style-override" = "ASS style override";
+"opt.sub-ass-style-override" = "Substituição do estilo ASS";
 
 "opt.fullscreen" = "Tela-Cheia";
 "opt.ontop" = "Flutuar no frente";
 
 "opt.chapter" = "Capítulo";
 
-
 "read.set" = "Setar {{property}} para {{value}}";
 "read.add" = "{{property}} {{value}}";
 "read.multiply" = "Multiplicar {{property}} em {{factor}}x";
 "read.cycle" = "Ciclo pela função {{property}}{{#dir_down}} Downwards{{/dir_down}}";
-"read.cycle-values" = "Cycle {{property}} in ({{{values}}})";
+"read.cycle-values" = "Ciclo {{property}} em ({{{values}}})";
 "read.seek" = "Busca {{#fwd}}adiante{{/fwd}}{{#bwd}}atrás{{/bwd}}{{#abs}}em{{/abs}} {{value}}{{#sec}}s{{/sec}}{{#per}}%{{/per}} {{#exact}}(exact){{/exact}}{{#kf}}(keyframe){{/kf}}";
 "read.sub-seek" = "Busca para {{#skip_1}}seguinte{{/skip_1}}{{#skip_-1}}anterior{{/skip_-1}} legenda";

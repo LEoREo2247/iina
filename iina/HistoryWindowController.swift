@@ -12,6 +12,8 @@ fileprivate let MenuItemTagRevealInFinder = 100
 fileprivate let MenuItemTagDelete = 101
 fileprivate let MenuItemTagSearchFilename = 200
 fileprivate let MenuItemTagSearchFullPath = 201
+fileprivate let MenuItemTagPlay = 300
+fileprivate let MenuItemTagPlayInNewWindow = 301
 
 fileprivate extension NSUserInterfaceItemIdentifier {
   static let time = NSUserInterfaceItemIdentifier("Time")
@@ -97,7 +99,7 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
 
   override func keyDown(with event: NSEvent) {
     let commandKey = NSEvent.ModifierFlags.command
-    if [event.modifierFlags, NSEvent.ModifierFlags.deviceIndependentFlagsMask] == commandKey  {
+    if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == commandKey  {
       switch event.charactersIgnoringModifiers! {
       case "f":
         window!.makeFirstResponder(historySearchField)
@@ -106,6 +108,9 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
       default:
         break
       }
+    } else if event.charactersIgnoringModifiers == "\u{7f}" {
+      let entries = outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? PlaybackHistory }
+      HistoryController.shared.remove(entries)
     }
   }
 
@@ -207,10 +212,16 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
   private var selectedEntries: [PlaybackHistory] = []
 
   func menuNeedsUpdate(_ menu: NSMenu) {
+    let selectedRow = outlineView.selectedRowIndexes
+    let clickedRow = outlineView.clickedRow
+    var indexSet = IndexSet()
     if menu.identifier == .contextMenu {
-      var indexSet = outlineView.selectedRowIndexes
-      if outlineView.clickedRow >= 0 {
-        indexSet.insert(outlineView.clickedRow)
+      if clickedRow != -1 {
+        if selectedRow.contains(clickedRow) {
+          indexSet = selectedRow
+        } else {
+          indexSet.insert(clickedRow)
+        }
       }
       selectedEntries = indexSet.compactMap { outlineView.item(atRow: $0) as? PlaybackHistory }
     }
@@ -220,8 +231,8 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
     switch menuItem.tag {
     case MenuItemTagRevealInFinder:
       if selectedEntries.isEmpty { return false }
-      return !selectedEntries.filter { FileManager.default.fileExists(atPath: $0.url.path) }.isEmpty
-    case MenuItemTagDelete:
+      return selectedEntries.contains { FileManager.default.fileExists(atPath: $0.url.path) }
+    case MenuItemTagDelete, MenuItemTagPlay, MenuItemTagPlayInNewWindow:
       return !selectedEntries.isEmpty
     case MenuItemTagSearchFilename:
       menuItem.state = searchOption == .filename ? .on : .off
@@ -258,9 +269,7 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
   @IBAction func deleteAction(_ sender: AnyObject) {
     Utility.quickAskPanel("delete_history", sheetWindow: window) { respond in
       guard respond == .alertFirstButtonReturn else { return }
-      for entry in self.selectedEntries {
-        HistoryController.shared.remove(entry)
-      }
+      HistoryController.shared.remove(self.selectedEntries)
     }
   }
 
@@ -286,5 +295,5 @@ class HistoryFilenameCellView: NSTableCellView {
 class HistoryProgressCellView: NSTableCellView {
 
   @IBOutlet var indicator: NSProgressIndicator!
-  
+
 }

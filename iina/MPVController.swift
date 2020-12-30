@@ -9,8 +9,6 @@
 import Cocoa
 import Foundation
 
-fileprivate typealias PK = Preference.Key
-
 fileprivate let yes_str = "yes"
 fileprivate let no_str = "no"
 
@@ -35,6 +33,10 @@ protocol MPVEventDelegate {
 }
 
 class MPVController: NSObject {
+  struct UserData {
+    static let screenshot: UInt64 = 1000000
+  }
+
   // The mpv_handle
   var mpv: OpaquePointer!
   var mpvRenderContext: OpaquePointer?
@@ -54,16 +56,22 @@ class MPVController: NSObject {
 
   var fileLoaded: Bool = false
 
+  private var hooks: [UInt64: () -> Void] = [:]
+  private var hookCounter: UInt64 = 1
+
   let observeProperties: [String: mpv_format] = [
-    MPVProperty.trackListCount: MPV_FORMAT_INT64,
+    MPVProperty.trackList: MPV_FORMAT_NONE,
     MPVProperty.vf: MPV_FORMAT_NONE,
     MPVProperty.af: MPV_FORMAT_NONE,
     MPVOption.TrackSelection.vid: MPV_FORMAT_INT64,
     MPVOption.TrackSelection.aid: MPV_FORMAT_INT64,
     MPVOption.TrackSelection.sid: MPV_FORMAT_INT64,
+    MPVOption.Subtitles.secondarySid: MPV_FORMAT_INT64,
     MPVOption.PlaybackControl.pause: MPV_FORMAT_FLAG,
+    MPVOption.PlaybackControl.loopPlaylist: MPV_FORMAT_FLAG,
     MPVProperty.chapter: MPV_FORMAT_INT64,
     MPVOption.Video.deinterlace: MPV_FORMAT_FLAG,
+    MPVOption.Video.hwdec: MPV_FORMAT_STRING,
     MPVOption.Audio.mute: MPV_FORMAT_FLAG,
     MPVOption.Audio.volume: MPV_FORMAT_DOUBLE,
     MPVOption.Audio.audioDelay: MPV_FORMAT_DOUBLE,
@@ -79,7 +87,9 @@ class MPVController: NSObject {
     MPVOption.Window.fullscreen: MPV_FORMAT_FLAG,
     MPVOption.Window.ontop: MPV_FORMAT_FLAG,
     MPVOption.Window.windowScale: MPV_FORMAT_DOUBLE,
-    MPVProperty.mediaTitle: MPV_FORMAT_STRING
+    MPVProperty.mediaTitle: MPV_FORMAT_STRING,
+    MPVProperty.videoParamsRotate: MPV_FORMAT_INT64,
+    MPVProperty.idleActive: MPV_FORMAT_FLAG
   ]
 
   init(playerCore: PlayerCore) {
@@ -131,10 +141,15 @@ class MPVController: NSObject {
 
     // - General
 
-    setUserOption(PK.screenshotFolder, type: .other, forName: MPVOption.Screenshot.screenshotDirectory) { key in
-      let screenshotPath = Preference.string(for: key)!
-      return NSString(string: screenshotPath).expandingTildeInPath
+    let setScreenshotPath = { (key: Preference.Key) -> String in
+      let screenshotPath = Preference.string(for: .screenshotFolder)!
+      return Preference.bool(for: .screenshotSaveToFile) ?
+        NSString(string: screenshotPath).expandingTildeInPath :
+        Utility.screenshotCacheURL.path
     }
+
+    setUserOption(PK.screenshotFolder, type: .other, forName: MPVOption.Screenshot.screenshotDirectory, transformer: setScreenshotPath)
+    setUserOption(PK.screenshotSaveToFile, type: .other, forName: MPVOption.Screenshot.screenshotDirectory, transformer: setScreenshotPath)
 
     setUserOption(PK.screenshotFormat, type: .other, forName: MPVOption.Screenshot.screenshotFormat) { key in
       let v = Preference.integer(for: key)
@@ -143,12 +158,9 @@ class MPVController: NSObject {
 
     setUserOption(PK.screenshotTemplate, type: .string, forName: MPVOption.Screenshot.screenshotTemplate)
 
-    if #available(macOS 10.13, *) {
-      chkErr(mpv_set_option_string(mpv, MPVOption.Input.inputMediaKeys, no_str))
-    } else {
-      setUserOption(PK.useMediaKeys, type: .bool, forName: MPVOption.Input.inputMediaKeys)
-    }
-    setUserOption(PK.useAppleRemote, type: .bool, forName: MPVOption.Input.inputAppleremote)
+    // Disable mpv's media key system as it now uses the MediaPlayer Framework.
+    // Dropped media key support in 10.11 and 10.12.
+    chkErr(mpv_set_option_string(mpv, MPVOption.Input.inputMediaKeys, no_str))
 
     setUserOption(PK.keepOpenOnFileEnd, type: .other, forName: MPVOption.Window.keepOpen) { key in
       let keepOpen = Preference.bool(for: PK.keepOpenOnFileEnd)
@@ -250,8 +262,9 @@ class MPVController: NSObject {
       return Preference.bool(for: key) ? nil : "no"
     }
 
-    setUserOption(PK.defaultCacheSize, type: .int, forName: MPVOption.Cache.cacheDefault)
-    setUserOption(PK.cacheBufferSize, type: .int, forName: MPVOption.Cache.cacheBackbuffer)
+    setUserOption(PK.defaultCacheSize, type: .other, forName: MPVOption.Demuxer.demuxerMaxBytes) { key in
+      return "\(Preference.integer(for: key))KiB"
+    }
     setUserOption(PK.secPrefech, type: .int, forName: MPVOption.Cache.cacheSecs)
 
     setUserOption(PK.userAgent, type: .other, forName: MPVOption.Network.userAgent) { key in
@@ -344,13 +357,17 @@ class MPVController: NSObject {
     var openGLInitParams = mpv_opengl_init_params(get_proc_address: mpvGetOpenGLFunc,
                                                   get_proc_address_ctx: nil,
                                                   extra_exts: nil)
-    var params = [
-      mpv_render_param(type: MPV_RENDER_PARAM_API_TYPE, data: apiType),
-      mpv_render_param(type: MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, data: &openGLInitParams),
-      mpv_render_param()
-    ]
-    mpv_render_context_create(&mpvRenderContext, mpv, &params)
-    mpv_render_context_set_update_callback(mpvRenderContext!, mpvUpdateCallback, mutableRawPointerOf(obj: player.mainWindow.videoView.videoLayer))
+    withUnsafeMutablePointer(to: &openGLInitParams) { openGLInitParams in
+      // var advanced: CInt = 1
+      var params = [
+        mpv_render_param(type: MPV_RENDER_PARAM_API_TYPE, data: apiType),
+        mpv_render_param(type: MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, data: openGLInitParams),
+        // mpv_render_param(type: MPV_RENDER_PARAM_ADVANCED_CONTROL, data: &advanced),
+        mpv_render_param()
+      ]
+      mpv_render_context_create(&mpvRenderContext, mpv, &params)
+      mpv_render_context_set_update_callback(mpvRenderContext!, mpvUpdateCallback, mutableRawPointerOf(obj: player.mainWindow.videoView.videoLayer))
+    }
   }
 
   func mpvUninitRendering() {
@@ -364,25 +381,37 @@ class MPVController: NSObject {
     mpv_render_context_report_swap(mpvRenderContext)
   }
 
+  func shouldRenderUpdateFrame() -> Bool {
+    guard let mpvRenderContext = mpvRenderContext else { return false }
+    let flags: UInt64 = mpv_render_context_update(mpvRenderContext)
+    return flags & UInt64(MPV_RENDER_UPDATE_FRAME.rawValue) > 0
+  }
+
   // Basically send quit to mpv
   func mpvQuit() {
     command(.quit)
   }
 
   // MARK: - Command & property
-
-  // Send arbitrary mpv command.
-  func command(_ command: MPVCommand, args: [String?] = [], checkError: Bool = true, returnValueCallback: ((Int32) -> Void)? = nil) {
-    guard mpv != nil else { return }
+  
+  private func makeCArgs(_ command: MPVCommand, _ args: [String?]) -> [String?] {
     if args.count > 0 && args.last == nil {
       Logger.fatal("Command do not need a nil suffix")
     }
     var strArgs = args
     strArgs.insert(command.rawValue, at: 0)
     strArgs.append(nil)
-    var cargs = strArgs.map { $0.flatMap { UnsafePointer<CChar>(strdup($0)) } }
+    return strArgs
+  }
+
+  // Send arbitrary mpv command.
+  func command(_ command: MPVCommand, args: [String?] = [], checkError: Bool = true, returnValueCallback: ((Int32) -> Void)? = nil) {
+    guard mpv != nil else { return }
+    var cargs = makeCArgs(command, args).map { $0.flatMap { UnsafePointer<CChar>(strdup($0)) } }
+    defer {
+      for ptr in cargs { free(UnsafeMutablePointer(mutating: ptr)) }
+    }
     let returnValue = mpv_command(self.mpv, &cargs)
-    for ptr in cargs { free(UnsafeMutablePointer(mutating: ptr)) }
     if checkError {
       chkErr(returnValue)
     } else if let cb = returnValueCallback {
@@ -392,6 +421,18 @@ class MPVController: NSObject {
 
   func command(rawString: String) -> Int32 {
     return mpv_command_string(mpv, rawString)
+  }
+
+  func asyncCommand(_ command: MPVCommand, args: [String?] = [], checkError: Bool = true, replyUserdata: UInt64) {
+    guard mpv != nil else { return }
+    var cargs = makeCArgs(command, args).map { $0.flatMap { UnsafePointer<CChar>(strdup($0)) } }
+    defer {
+      for ptr in cargs { free(UnsafeMutablePointer(mutating: ptr)) }
+    }
+    let returnValue = mpv_command_async(self.mpv, replyUserdata, &cargs)
+    if checkError {
+      chkErr(returnValue)
+    }
   }
 
   // Set property
@@ -454,6 +495,18 @@ class MPVController: NSObject {
     return str
   }
 
+  func getScreenshot(_ arg: String) -> NSImage? {
+    var args = try! MPVNode.create(["screenshot-raw", arg])
+    defer {
+      MPVNode.free(args)
+    }
+    var result = mpv_node()
+    mpv_command_node(self.mpv, &args, &result)
+    let image = ObjcUtils.getImageFrom(&result)
+    mpv_free_node_contents(&result)
+    return image;
+  }
+
   /** Get filter. only "af" or "vf" is supported for name */
   func getFilters(_ name: String) -> [MPVFilter] {
     Logger.ensure(name == MPVProperty.vf || name == MPVProperty.af, "getFilters() do not support \(name)!")
@@ -492,7 +545,15 @@ class MPVController: NSObject {
     mpv_get_property(mpv, name, MPV_FORMAT_NODE, &node)
     let parsed = try? MPVNode.parse(node)
     mpv_free_node_contents(&node)
-    return parsed!
+    return parsed
+  }
+
+  // MARK: - Hooks
+
+  func addHook(_ name: MPVHook, priority: Int32 = 0, hook: @escaping () -> Void) {
+    mpv_hook_add(mpv, hookCounter, name.rawValue, priority)
+    hooks[hookCounter] = hook
+    hookCounter += 1
   }
 
   // MARK: - Events
@@ -519,7 +580,9 @@ class MPVController: NSObject {
     case MPV_EVENT_SHUTDOWN:
       let quitByMPV = !player.isMpvTerminated
       if quitByMPV {
-        NSApp.terminate(nil)
+        DispatchQueue.main.sync {
+          NSApp.terminate(nil)
+        }
       } else {
         mpv_destroy(mpv)
         mpv = nil
@@ -533,6 +596,15 @@ class MPVController: NSObject {
       let text = String(cString: (msg?.pointee.text)!)
       Logger.log("mpv log: [\(prefix)] \(level): \(text)", level: .warning, subsystem: .general, appendNewlineAtTheEnd: false)
 
+    case MPV_EVENT_HOOK:
+      let userData = event.pointee.reply_userdata
+      let hookEvent = event.pointee.data.bindMemory(to: mpv_event_hook.self, capacity: 1).pointee
+      let hookID = hookEvent.id
+      if let hook = hooks[userData] {
+        hook()
+      }
+      mpv_hook_continue(mpv, hookID)
+
     case MPV_EVENT_PROPERTY_CHANGE:
       let dataOpaquePtr = OpaquePointer(event.pointee.data)
       if let property = UnsafePointer<mpv_event_property>(dataOpaquePtr)?.pointee {
@@ -540,12 +612,10 @@ class MPVController: NSObject {
         handlePropertyChange(propertyName, property)
       }
 
-    case MPV_EVENT_AUDIO_RECONFIG:
-      break
+    case MPV_EVENT_AUDIO_RECONFIG: break
 
     case MPV_EVENT_VIDEO_RECONFIG:
       onVideoReconfig()
-      break
 
     case MPV_EVENT_START_FILE:
       player.info.isIdle = false
@@ -582,43 +652,34 @@ class MPVController: NSObject {
     case MPV_EVENT_END_FILE:
       // if receive end-file when loading file, might be error
       // wait for idle
+      let reason = event!.pointee.data.load(as: mpv_end_file_reason.self)
       if player.info.fileLoading {
-        receivedEndFileWhileLoading = true
+        if reason != MPV_END_FILE_REASON_STOP {
+          receivedEndFileWhileLoading = true
+        }
       } else {
         player.info.shouldAutoLoadFiles = false
       }
-      break
-
-    case MPV_EVENT_IDLE:
-      if receivedEndFileWhileLoading && player.info.fileLoading {
-        player.errorOpeningFileAndCloseMainWindow()
-        player.info.fileLoading = false
-        player.info.currentURL = nil
-        player.info.isNetworkResource = false
+      
+    case MPV_EVENT_COMMAND_REPLY:
+      let reply = event.pointee.reply_userdata
+      if reply == MPVController.UserData.screenshot {
+        player.screenshotCallback()
       }
-      player.info.isIdle = true
-      if fileLoaded {
-        fileLoaded = false
-        player.closeMainWindow()
-      }
-      receivedEndFileWhileLoading = false
-      break
 
-    default:
+    default: break
       // let eventName = String(cString: mpv_event_name(eventId))
       // Utility.log("mpv event (unhandled): \(eventName)")
-      break
     }
   }
 
-  private func onVideoParamsChange (_ data: UnsafePointer<mpv_node_list>) {
+  private func onVideoParamsChange(_ data: UnsafePointer<mpv_node_list>) {
     //let params = data.pointee
     //params.keys.
   }
 
   private func onFileLoaded() {
     // mpvSuspend()
-    let paused = getFlag(MPVOption.PlaybackControl.pause)
     setFlag(MPVOption.PlaybackControl.pause, true)
     // Get video size and set the initial window size
     let width = getInt(MPVProperty.width)
@@ -631,14 +692,16 @@ class MPVController: NSObject {
     player.info.displayHeight = 0
     player.info.videoDuration = VideoTime(duration)
     if let filename = getString(MPVProperty.path) {
-      player.info.cachedVideoDurationAndProgress[filename]?.duration = duration
+      player.playlistQueue.async {
+        self.player.info.cachedVideoDurationAndProgress[filename]?.duration = duration
+      }
     }
     player.info.videoPosition = VideoTime(pos)
     player.fileLoaded()
     fileLoaded = true
     // mpvResume()
-    if !Preference.bool(for: .pauseWhenOpen) {
-      setFlag(MPVOption.PlaybackControl.pause, paused)
+    if !(player.info.justOpenedFile && Preference.bool(for: .pauseWhenOpen)) {
+      setFlag(MPVOption.PlaybackControl.pause, false)
     }
     player.syncUI(.playlist)
   }
@@ -659,7 +722,9 @@ class MPVController: NSObject {
       // video size changed
       player.info.displayWidth = dwidth
       player.info.displayHeight = dheight
-      player.notifyMainWindowVideoSizeChanged()
+      DispatchQueue.main.sync {
+        player.notifyMainWindowVideoSizeChanged()
+      }
     }
   }
 
@@ -675,53 +740,56 @@ class MPVController: NSObject {
       needReloadQuickSettingsView = true
       onVideoParamsChange(UnsafePointer<mpv_node_list>(OpaquePointer(property.data)))
 
+    case MPVProperty.videoParamsRotate:
+      if let rotation = UnsafePointer<Int>(OpaquePointer(property.data))?.pointee {
+        player.mainWindow.rotation = rotation
+      }
+
     case MPVOption.TrackSelection.vid:
-      needReloadQuickSettingsView = true
-      let data = getInt(MPVOption.TrackSelection.vid)
-      player.info.vid = Int(data)
-      player.getTrackInfo()
-      let currTrack = player.info.currentTrack(.video) ?? .noneVideoTrack
-      player.sendOSD(.track(currTrack))
+      player.info.vid = Int(getInt(MPVOption.TrackSelection.vid))
+      player.postNotification(.iinaVIDChanged)
+      player.sendOSD(.track(player.info.currentTrack(.video) ?? .noneVideoTrack))
 
     case MPVOption.TrackSelection.aid:
-      needReloadQuickSettingsView = true
-      let data = getInt(MPVOption.TrackSelection.aid)
-      player.info.aid = Int(data)
-      player.getTrackInfo()
-      let currTrack = player.info.currentTrack(.audio) ?? .noneAudioTrack
+      player.info.aid = Int(getInt(MPVOption.TrackSelection.aid))
+      guard player.mainWindow.loaded else { break }
       DispatchQueue.main.sync {
         player.mainWindow?.muteButton.isEnabled = (player.info.aid != 0)
         player.mainWindow?.volumeSlider.isEnabled = (player.info.aid != 0)
       }
-      player.sendOSD(.track(currTrack))
+      player.postNotification(.iinaAIDChanged)
+      player.sendOSD(.track(player.info.currentTrack(.audio) ?? .noneAudioTrack))
 
     case MPVOption.TrackSelection.sid:
-      needReloadQuickSettingsView = true
-      let data = getInt(MPVOption.TrackSelection.sid)
-      player.info.sid = Int(data)
-      player.getTrackInfo()
-      let currTrack = player.info.currentTrack(.sub) ?? .noneSubTrack
-      player.sendOSD(.track(currTrack))
+      player.info.sid = Int(getInt(MPVOption.TrackSelection.sid))
+      player.postNotification(.iinaSIDChanged)
+      player.sendOSD(.track(player.info.currentTrack(.sub) ?? .noneSubTrack))
+
+    case MPVOption.Subtitles.secondarySid:
+      player.info.secondSid = Int(getInt(MPVOption.Subtitles.secondarySid))
+      player.postNotification(.iinaSIDChanged)
 
     case MPVOption.PlaybackControl.pause:
-      if let data = UnsafePointer<Bool>(OpaquePointer(property.data))?.pointee {
-        if player.info.isPaused != data {
-          player.sendOSD(data ? .pause : .resume)
-          player.info.isPaused = data
+      if let paused = UnsafePointer<Bool>(OpaquePointer(property.data))?.pointee {
+        if player.info.isPaused != paused {
+          player.sendOSD(paused ? .pause : .resume)
+          DispatchQueue.main.sync {
+            player.info.isPaused = paused
+          }
         }
-        if player.mainWindow.isWindowLoaded {
-          if Preference.bool(for: .alwaysFloatOnTop) {
-            DispatchQueue.main.async {
-              self.player.mainWindow.setWindowFloatingOnTop(!data)
-            }
+        if player.mainWindow.loaded && Preference.bool(for: .alwaysFloatOnTop) {
+          DispatchQueue.main.async {
+            self.player.mainWindow.setWindowFloatingOnTop(!paused)
           }
         }
       }
       player.syncUI(.playButton)
 
     case MPVProperty.chapter:
+      player.info.chapter = Int(getInt(MPVProperty.chapter))
       player.syncUI(.time)
       player.syncUI(.chapterList)
+      player.postNotification(.iinaMediaTitleChanged)
 
     case MPVOption.PlaybackControl.speed:
       needReloadQuickSettingsView = true
@@ -730,14 +798,25 @@ class MPVController: NSObject {
         player.sendOSD(.speed(data))
       }
 
+    case MPVOption.PlaybackControl.loopPlaylist:
+      player.syncUI(.playlistLoop)
+
     case MPVOption.Video.deinterlace:
       needReloadQuickSettingsView = true
       if let data = UnsafePointer<Bool>(OpaquePointer(property.data))?.pointee {
         // this property will fire a change event at file start
         if player.info.deinterlace != data {
-          player.sendOSD(.deinterlace(data))
           player.info.deinterlace = data
+          player.sendOSD(.deinterlace(data))
         }
+      }
+
+    case MPVOption.Video.hwdec:
+      needReloadQuickSettingsView = true
+      let data = String(cString: property.data.assumingMemoryBound(to: UnsafePointer<UInt8>.self).pointee)
+      if player.info.hwdec != data {
+        player.info.hwdec = data
+        player.sendOSD(.hwdec(player.info.hwdecEnabled))
       }
 
     case MPVOption.Audio.mute:
@@ -827,7 +906,7 @@ class MPVController: NSObject {
     case MPVProperty.playlistCount:
       player.postNotification(.iinaPlaylistChanged)
 
-    case MPVProperty.trackListCount:
+    case MPVProperty.trackList:
       player.trackListChanged()
       player.postNotification(.iinaTracklistChanged)
 
@@ -839,24 +918,23 @@ class MPVController: NSObject {
       player.postNotification(.iinaAFChanged)
 
     case MPVOption.Window.fullscreen:
-      guard player.mainWindow.isWindowLoaded else { break }
+      guard player.mainWindow.loaded else { break }
       let fs = getFlag(MPVOption.Window.fullscreen)
       if fs != player.mainWindow.fsState.isFullscreen {
         DispatchQueue.main.async(execute: self.player.mainWindow.toggleWindowFullScreen)
       }
 
     case MPVOption.Window.ontop:
-      guard player.mainWindow.isWindowLoaded else { break }
+      guard player.mainWindow.loaded else { break }
       let ontop = getFlag(MPVOption.Window.ontop)
       if ontop != player.mainWindow.isOntop {
         DispatchQueue.main.async {
-          self.player.mainWindow.isOntop = ontop
           self.player.mainWindow.setWindowFloatingOnTop(ontop)
         }
       }
 
     case MPVOption.Window.windowScale:
-      guard player.mainWindow.isWindowLoaded else { break }
+      guard player.mainWindow.loaded else { break }
       let windowScale = getDouble(MPVOption.Window.windowScale)
       if fabs(windowScale - player.info.cachedWindowScale) > 10e-10 {
         DispatchQueue.main.async {
@@ -867,12 +945,28 @@ class MPVController: NSObject {
     case MPVProperty.mediaTitle:
       player.postNotification(.iinaMediaTitleChanged)
 
+    case MPVProperty.idleActive:
+      if getFlag(MPVProperty.idleActive) {
+        if receivedEndFileWhileLoading && player.info.fileLoading {
+          player.errorOpeningFileAndCloseMainWindow()
+          player.info.fileLoading = false
+          player.info.currentURL = nil
+          player.info.isNetworkResource = false
+        }
+        player.info.isIdle = true
+        if fileLoaded {
+          fileLoaded = false
+          player.closeMainWindow()
+        }
+        receivedEndFileWhileLoading = false
+      }
+
     default:
       // Utility.log("MPV property changed (unhandled): \(name)")
       break
     }
 
-    if (needReloadQuickSettingsView) {
+    if needReloadQuickSettingsView {
       DispatchQueue.main.async {
         self.player.mainWindow.quickSettingView.reload()
       }
@@ -1027,8 +1121,10 @@ fileprivate func mpvGetOpenGLFunc(_ ctx: UnsafeMutableRawPointer?, _ name: Unsaf
 }
 
 fileprivate func mpvUpdateCallback(_ ctx: UnsafeMutableRawPointer?) {
-  let layer = unsafeBitCast(ctx, to: ViewLayer.self)
+  let layer = bridge(ptr: ctx!) as ViewLayer
+  guard !layer.blocked else { return }
+
   layer.mpvGLQueue.async {
-    layer.display()
+    layer.draw()
   }
 }

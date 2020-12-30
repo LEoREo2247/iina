@@ -17,7 +17,7 @@ class MainMenuActionHandler: NSResponder {
     self.player = playerCore
     super.init()
   }
-  
+
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
@@ -27,7 +27,7 @@ class MainMenuActionHandler: NSResponder {
     inspector.showWindow(self)
     inspector.updateInfo()
   }
-  
+
   @objc func menuSavePlaylist(_ sender: NSMenuItem) {
     Utility.quickSavePanel(title: "Save to playlist", types: ["m3u8"]) { (url) in
       if url.isFileURL {
@@ -35,7 +35,7 @@ class MainMenuActionHandler: NSResponder {
         for item in self.player.info.playlist {
           playlist.append((item.filename + "\n"))
         }
-        
+
         do {
           try playlist.write(to: url, atomically: true, encoding: String.Encoding.utf8)
         } catch let error as NSError {
@@ -75,7 +75,12 @@ class MainMenuActionHandler: NSResponder {
 
 extension MainMenuActionHandler {
   @objc func menuTogglePause(_ sender: NSMenuItem) {
-    player.togglePause(!player.info.isPaused)
+    player.togglePause()
+    // set speed to 0 if is fastforwarding
+    if player.mainWindow.isFastforwarding {
+      player.setSpeed(1)
+      player.mainWindow.isFastforwarding = false
+    }
   }
 
   @objc func menuStop(_ sender: NSMenuItem) {
@@ -93,8 +98,8 @@ extension MainMenuActionHandler {
   }
 
   @objc func menuStepFrame(_ sender: NSMenuItem) {
-    if !player.info.isPaused {
-      player.togglePause(true)
+    if player.info.isPlaying {
+      player.pause()
     }
     if sender.tag == 0 { // -> 1f
       player.frameStep(backwards: false)
@@ -170,11 +175,11 @@ extension MainMenuActionHandler {
   }
 
   @objc func menuNextChapter(_ sender: NSMenuItem) {
-    player.mpv.command(.add, args: ["chapter", "1"])
+    player.mpv.command(.add, args: ["chapter", "1"], checkError: false)
   }
 
   @objc func menuPreviousChapter(_ sender: NSMenuItem) {
-    player.mpv.command(.add, args: ["chapter", "-1"])
+    player.mpv.command(.add, args: ["chapter", "-1"], checkError: false)
   }
 }
 
@@ -192,6 +197,12 @@ extension MainMenuActionHandler {
 
   @objc func menuChangeCrop(_ sender: NSMenuItem) {
     if let cropStr = sender.representedObject as? String {
+      if cropStr == "Custom" {
+        player.mainWindow.hideSideBar {
+          self.player.mainWindow.enterInteractiveMode(.crop, selectWholeVideoByDefault: true)
+        }
+        return
+      }
       player.setCrop(fromString: cropStr)
     } else {
       Logger.log("sender.representedObject is not a string in menuChangeCrop()", level: .error)

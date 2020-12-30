@@ -180,7 +180,7 @@ class MenuController: NSObject, NSMenuDelegate {
     stringForOpenURL = openURL.title
     stringForOpenAlternative = openAlternative.title
     stringForOpenURLAlternative = openURLAlternative.title
-    
+
     savePlaylist.action = #selector(MainMenuActionHandler.menuSavePlaylist(_:))
     deleteCurrentFile.action = #selector(MainMenuActionHandler.menuDeleteCurrentFile(_:))
 
@@ -188,7 +188,7 @@ class MenuController: NSObject, NSMenuDelegate {
       newWindowSeparator.isHidden = false
       newWindow.isHidden = false
     }
-    
+
     // Playback menu
 
     playbackMenu.delegate = self
@@ -271,9 +271,14 @@ class MenuController: NSObject, NSMenuDelegate {
     var cropListForObject = AppData.aspects
     cropList.insert(Constants.String.none, at: 0)
     cropListForObject.insert("None", at: 0)
+    // Allow custom crop size.
+    cropList.append(Constants.String.custom)
+    cropListForObject.append("Custom")
     bind(menu: cropMenu, withOptions: cropList, objects: cropListForObject, objectMap: nil, action: #selector(MainMenuActionHandler.menuChangeCrop(_:))) {
       return PlayerCore.active.info.unsureCrop == $0.representedObject as? String
     }
+    // Separate "Custom..." from other crop sizes.
+    cropMenu.insertItem(NSMenuItem.separator(), at: 1 + AppData.aspects.count)
 
     // -- rotation
     let rotationTitles = AppData.rotations.map { "\($0)\(Constants.String.degree)" }
@@ -396,12 +401,21 @@ class MenuController: NSObject, NSMenuDelegate {
   private func updateChapterList() {
     chapterMenu.removeAllItems()
     let info = PlayerCore.active.info
+    let padder = { (time: String) -> String in
+      let standard = (info.chapters.last?.time.stringRepresentation ?? "").reversed()
+      return String((time.reversed() + standard[standard.index(standard.startIndex, offsetBy: time.count)...].map {
+        $0 == ":" ? ":" : "0"
+      }).reversed())
+    }
     for (index, chapter) in info.chapters.enumerated() {
-      let menuTitle = "\(chapter.time.stringRepresentation) - \(chapter.title)"
+      let menuTitle = "\(padder(chapter.time.stringRepresentation)) – \(chapter.title)"
       let nextChapterTime = info.chapters[at: index+1]?.time ?? Constants.Time.infinite
       let isPlaying = info.videoPosition?.between(chapter.time, nextChapterTime) ?? false
-      chapterMenu.addItem(withTitle: menuTitle, action: #selector(MainMenuActionHandler.menuChapterSwitch(_:)),
-                          tag: index, obj: nil, stateOn: isPlaying)
+      let menuItem = NSMenuItem(title: menuTitle, action: #selector(MainMenuActionHandler.menuChapterSwitch(_:)), keyEquivalent: "")
+      menuItem.tag = index
+      menuItem.state = isPlaying ? .on : .off
+      menuItem.attributedTitle = NSAttributedString(string: menuTitle, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 0, weight: .regular)])
+      chapterMenu.addItem(menuItem)
     }
   }
 
@@ -468,7 +482,7 @@ class MenuController: NSObject, NSMenuDelegate {
   private func updateSubMenu() {
     let player = PlayerCore.active
     subDelayIndicator.title = String(format: NSLocalizedString("menu.sub_delay", comment: "Subtitle Delay:"), player.info.subDelay)
-    
+
     let encodingCode = player.info.subEncoding ?? "auto"
     for encoding in AppData.encodings {
       if encoding.code == encodingCode {

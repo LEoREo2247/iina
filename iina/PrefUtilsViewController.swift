@@ -18,6 +18,10 @@ class PrefUtilsViewController: PreferenceViewController, PreferenceWindowEmbedda
     return NSLocalizedString("preference.utilities", comment: "Utilities")
   }
 
+  var preferenceTabImage: NSImage {
+    return NSImage(named: NSImage.Name("pref_utils"))!
+  }
+
   override var sectionViews: [NSView] {
     return [sectionDefaultAppView, sectionClearCacheView, sectionBrowserExtView]
   }
@@ -42,7 +46,7 @@ class PrefUtilsViewController: PreferenceViewController, PreferenceWindowEmbedda
   }
 
   private func updateThumbnailCacheStat() {
-    thumbCacheSizeLabel.stringValue = FileSize.format(CacheManager.shared.getCacheSize(), unit: .b)
+    thumbCacheSizeLabel.stringValue = "\(FloatingPointByteCountFormatter.string(fromByteCount: CacheManager.shared.getCacheSize(), countStyle: .binary))B"
   }
 
   @IBAction func setIINAAsDefaultAction(_ sender: Any) {
@@ -130,14 +134,11 @@ class PrefUtilsViewController: PreferenceViewController, PreferenceWindowEmbedda
     }
   }
 
-  @IBAction func extSafariBtnAction(_ sender: Any) {
-    NSWorkspace.shared.open(URL(string: AppData.safariExtensionLink)!)
-  }
-
   @IBAction func extChromeBtnAction(_ sender: Any) {
     NSWorkspace.shared.open(URL(string: AppData.chromeExtensionLink)!)
   }
 
   @IBAction func extFirefoxBtnAction(_ sender: Any) {
+    NSWorkspace.shared.open(URL(string: AppData.firefoxExtensionLink)!)
   }
 }

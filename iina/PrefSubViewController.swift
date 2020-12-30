@@ -20,6 +20,10 @@ class PrefSubViewController: PreferenceViewController, PreferenceWindowEmbeddabl
     return NSLocalizedString("preference.subtitle", comment: "Subtitles")
   }
 
+  var preferenceTabImage: NSImage {
+    return NSImage(named: NSImage.Name("pref_sub"))!
+  }
+
   override var sectionViews: [NSView] {
     return [sectionAutoLoadView, sectionASSView, sectionTextSubView, sectionPositionView, sectionOnlineSubView, sectionOtherView]
   }
@@ -34,7 +38,7 @@ class PrefSubViewController: PreferenceViewController, PreferenceWindowEmbeddabl
   @IBOutlet weak var subSourceStackView: NSStackView!
   @IBOutlet weak var subSourcePopUpButton: NSPopUpButton!
 
-  @IBOutlet weak var subLangTokenView: NSTokenField!
+  @IBOutlet weak var subLangTokenView: LanguageTokenField!
   @IBOutlet weak var loginIndicator: NSProgressIndicator!
   @IBOutlet weak var defaultEncodingList: NSPopUpButton!
 
@@ -52,9 +56,9 @@ class PrefSubViewController: PreferenceViewController, PreferenceWindowEmbeddabl
     }
 
     defaultEncodingList.menu?.insertItem(NSMenuItem.separator(), at: 1)
-
-    subLangTokenView.delegate = self
     loginIndicator.isHidden = true
+
+    subLangTokenView.stringValue = Preference.string(for: .subLang) ?? ""
 
     refreshOnlineSubSource()
   }
@@ -70,10 +74,9 @@ class PrefSubViewController: PreferenceViewController, PreferenceWindowEmbeddabl
     let currUsername = Preference.string(for: .openSubUsername) ?? ""
     if currUsername.isEmpty {
       // if current username is empty, login
-      let _ = Utility.quickUsernamePasswordPanel("opensub.login") {
-        (username, password) in
-        loginIndicator.isHidden = false
-        loginIndicator.startAnimation(nil)
+      Utility.quickUsernamePasswordPanel("opensub.login", sheetWindow: self.view.window) { (username, password) in
+        self.loginIndicator.isHidden = false
+        self.loginIndicator.startAnimation(nil)
         firstly {
           OpenSubSupport().login(testUser: username, password: password)
         }.map { _ in
@@ -127,6 +130,10 @@ class PrefSubViewController: PreferenceViewController, PreferenceWindowEmbeddabl
     refreshOnlineSubSource()
   }
 
+  @IBAction func preferredLanguageAction(_ sender: LanguageTokenField) {
+    Preference.set(sender.stringValue, for: .subLang)
+  }
+
   private func refreshOnlineSubSource() {
     let tag = subSourcePopUpButton.selectedTag()
     for (index, view) in subSourceStackView.views.enumerated() {
@@ -134,53 +141,6 @@ class PrefSubViewController: PreferenceViewController, PreferenceWindowEmbeddabl
       subSourceStackView.setVisibilityPriority(index == tag ? .mustHold : .notVisible, for: view)
     }
   }
-}
-
-
-extension PrefSubViewController: NSTokenFieldDelegate {
-
-  func tokenField(_ tokenField: NSTokenField, styleForRepresentedObject representedObject: Any) -> NSTokenField.TokenStyle {
-    return .rounded
-  }
-
-  func tokenField(_ tokenField: NSTokenField, hasMenuForRepresentedObject representedObject: Any) -> Bool {
-    return false
-  }
-
-  func tokenField(_ tokenField: NSTokenField, completionsForSubstring substring: String, indexOfToken tokenIndex: Int, indexOfSelectedItem selectedIndex: UnsafeMutablePointer<Int>?) -> [Any]? {
-    let lowSubString = substring.lowercased()
-    let matches = ISO639Helper.languages.filter { lang in
-      return lang.name.reduce(false) { $1.lowercased().hasPrefix(lowSubString) || $0 }
-    }
-    return matches.map { $0.description }
-  }
-
-  func tokenField(_ tokenField: NSTokenField, representedObjectForEditing editingString: String) -> Any? {
-    if let code = Regex.iso639_2Desc.captures(in: editingString)[at: 1] {
-      return SubLangToken(code)
-    } else {
-      return SubLangToken(editingString)
-    }
-  }
-
-  func tokenField(_ tokenField: NSTokenField, displayStringForRepresentedObject representedObject: Any) -> String? {
-    if let token = representedObject as? SubLangToken {
-      return token.name
-    } else {
-      return representedObject as? String
-    }
-  }
-
-}
-
-
-class SubLangToken: NSObject {
-  var name: String
-
-  init(_ name: String) {
-    self.name = name
-  }
-
 }
 
 
@@ -197,30 +157,6 @@ class SubLangToken: NSObject {
   override func transformedValue(_ value: Any?) -> Any? {
     guard let num = value as? NSNumber else { return nil }
     return Preference.SubOverrideLevel(rawValue: num.intValue)?.string
-  }
-
-}
-
-
-@objc(SubLangTransformer) class SubLangTransformer: ValueTransformer {
-
-  static override func allowsReverseTransformation() -> Bool {
-    return true
-  }
-
-  static override func transformedValueClass() -> AnyClass {
-    return NSString.self
-  }
-
-  override func transformedValue(_ value: Any?) -> Any? {
-    guard let str = value as? NSString else { return nil }
-    if str.length == 0 { return [] }
-    return str.components(separatedBy: ",").map { SubLangToken($0) }
-  }
-
-  override func reverseTransformedValue(_ value: Any?) -> Any? {
-    guard let arr = value as? NSArray else { return "" }
-    return arr.map{ ($0 as! SubLangToken).name }.joined(separator: ",")
   }
 
 }

@@ -1,3 +1,5 @@
+/* Class = "NSTextFieldCell"; title = "Assrt API token:"; ObjectID = "0aU-O1-R6G"; */
+"0aU-O1-R6G.title" = "Token da API Assrt:";
 
 /* Class = "NSTextFieldCell"; title = "Online Subtitles:"; ObjectID = "0fB-es-DmV"; */
 "0fB-es-DmV.title" = "Legendas Online:";
@@ -5,14 +7,8 @@
 /* Class = "NSMenuItem"; title = "Top"; ObjectID = "1Tq-5k-o6R"; */
 "1Tq-5k-o6R.title" = "Topo";
 
-/* Class = "NSTabViewItem"; label = "General"; ObjectID = "29W-lw-0pD"; */
-"29W-lw-0pD.label" = "Geral";
-
 /* Class = "NSButtonCell"; title = "Display subtitles in letterboxes while in full screen"; ObjectID = "2XY-Un-0Fg"; */
 "2XY-Un-0Fg.title" = "Mostrar legendas em caixa quando em tela cheia";
-
-/* Class = "NSMenuItem"; title = "OpenSubtitles.org"; ObjectID = "39k-VH-tOz"; */
-"39k-VH-tOz.title" = "OpenSubtitles.org";
 
 /* Class = "NSTextFieldCell"; title = "strip"; ObjectID = "3H8-Ei-cTm"; */
 "3H8-Ei-cTm.title" = "cortar";
@@ -22,9 +18,6 @@
 
 /* Class = "NSMenuItem"; title = "Bottom"; ObjectID = "6i0-Sx-V7F"; */
 "6i0-Sx-V7F.title" = "Embaixo";
-
-/* Class = "NSMenuItem"; title = "Shooter.cn"; ObjectID = "7YD-rw-eCZ"; */
-"7YD-rw-eCZ.title" = "Shooter.cn";
 
 /* Class = "NSTextFieldCell"; title = "Subtitles have priority when filename containing:"; ObjectID = "7pf-Kb-TNr"; */
 "7pf-Kb-TNr.title" = "Legendas possuem prioridade quando nome do arquivo contem:";
@@ -47,20 +40,23 @@
 /* Class = "NSBox"; title = "Shadow"; ObjectID = "BgE-Kk-MXC"; */
 "BgE-Kk-MXC.title" = "Sombra";
 
+/* Class = "NSButtonCell"; title = "Search online subtitles automatically"; ObjectID = "C3p-uP-8u8"; */
+"C3p-uP-8u8.title" = "Pesquisar legendas on-line automaticamente";
+
 /* Class = "NSTextFieldCell"; title = "Font:"; ObjectID = "C4C-XP-i2S"; */
 "C4C-XP-i2S.title" = "Fonte:";
 
 /* Class = "NSTextFieldCell"; title = " X:"; ObjectID = "CdS-9J-f2h"; */
 "CdS-9J-f2h.title" = " X:";
 
+/* Class = "NSTextFieldCell"; title = "Advanced"; ObjectID = "DUA-7H-Yje"; */
+"DUA-7H-Yje.title" = "Avançado";
+
 /* Class = "NSMenuItem"; title = "Right"; ObjectID = "Gie-38-Kk4"; */
 "Gie-38-Kk4.title" = "Direita";
 
 /* Class = "NSTextFieldCell"; title = "OpenSubtitles account:"; ObjectID = "Iax-cc-YIO"; */
-"Iax-cc-YIO.title" = "OpenSubtitles account:";
-
-/* Class = "NSTextFieldCell"; title = "%"; ObjectID = "JZo-4H-owW"; */
-"JZo-4H-owW.title" = "%";
+"Iax-cc-YIO.title" = "Conta OpenSubtitles:";
 
 /* Class = "NSTextFieldCell"; title = "Other:"; ObjectID = "LiG-iV-AQK"; */
 "LiG-iV-AQK.title" = "Outro:";
@@ -80,9 +76,6 @@
 /* Class = "NSTextFieldCell"; title = "Also search subtitles in following directories:"; ObjectID = "QsS-wD-2hY"; */
 "QsS-wD-2hY.title" = "Também procurar nos diretórios:";
 
-/* Class = "NSTabViewItem"; label = "Style and Position"; ObjectID = "R5q-Xd-PPr"; */
-"R5q-Xd-PPr.label" = "Stilo and Posição";
-
 /* Class = "NSTextFieldCell"; title = "Color:"; ObjectID = "SIh-Sv-6XI"; */
 "SIh-Sv-6XI.title" = "Cor:";
 
@@ -95,26 +88,26 @@
 /* Class = "NSButtonCell"; title = "Login"; ObjectID = "WHk-sk-gmK"; */
 "WHk-sk-gmK.title" = "Login";
 
+/* Class = "NSTextFieldCell"; title = "Advanced"; ObjectID = "X7X-18-FJg"; */
+"X7X-18-FJg.title" = "Avançado";
+
 /* Class = "NSMenuItem"; title = "Detect intelligently by IINA"; ObjectID = "XiL-eE-jah"; */
 "XiL-eE-jah.title" = "Detecção inteligente do IINA";
 
 /* Class = "NSTextFieldCell"; title = "Default encoding:"; ObjectID = "Y75-4k-2Du"; */
 "Y75-4k-2Du.title" = "Codificação padrão:";
 
-/* Class = "NSTextFieldCell"; title = "This option will be stored as ISO 639-2 language code and will works for both mpv and opensubtitles."; ObjectID = "Z2M-dh-eq1"; */
+/* Class = "NSTextFieldCell"; title = "This option will be stored as ISO 639-2 language code and will work for both mpv and opensubtitles."; ObjectID = "Z2M-dh-eq1"; */
 "Z2M-dh-eq1.title" = "Esta opção será armazenada como linguagem ISO 639-2 e funcionará para ambos mpv e opensubtitles.";
 
 /* Class = "NSTextFieldCell"; title = "Blur:"; ObjectID = "aO9-D6-KG8"; */
 "aO9-D6-KG8.title" = "Borrar:";
 
-/* Class = "NSTextFieldCell"; title = "sans-serif"; ObjectID = "azJ-oz-BKZ"; */
-"azJ-oz-BKZ.title" = "sans-serif";
-
 /* Class = "NSTextFieldCell"; title = "Not logged in"; ObjectID = "cov-Uy-wnc"; */
 "cov-Uy-wnc.title" = "Nao logado";
 
 /* Class = "NSTextFieldCell"; title = "Offset:"; ObjectID = "dtP-9o-yhy"; */
-"dtP-9o-yhy.title" = "Offset:";
+"dtP-9o-yhy.title" = "Compensação:";
 
 /* Class = "NSMenuItem"; title = "Center"; ObjectID = "e0e-dB-Ir6"; */
 "e0e-dB-Ir6.title" = "Centro";
@@ -122,17 +115,17 @@
 /* Class = "NSTextFieldCell"; title = "Background:"; ObjectID = "eYO-c0-Rjp"; */
 "eYO-c0-Rjp.title" = "Fundo:";
 
-/* Class = "NSBox"; title = "Box"; ObjectID = "egf-g3-b7a"; */
+/* Class = "NSBox"; title = "Other Styles"; ObjectID = "egf-g3-b7a"; */
 "egf-g3-b7a.title" = "Box";
 
 /* Class = "NSTextFieldCell"; title = "Override level:"; ObjectID = "gAq-Vr-hRY"; */
-"gAq-Vr-hRY.title" = "Override level:";
+"gAq-Vr-hRY.title" = "Substituir nível:";
 
 /* Class = "NSTextFieldCell"; title = "Size:"; ObjectID = "gkc-qt-sD9"; */
 "gkc-qt-sD9.title" = "Tamanho:";
 
-/* Class = "NSButtonCell"; title = "𝐁"; ObjectID = "hEk-7E-10q"; */
-"hEk-7E-10q.title" = "𝐁";
+/* Class = "NSButtonCell"; title = "Bold"; ObjectID = "hEk-7E-10r"; */
+"hEk-7E-10r.title" = "Negrito";
 
 /* Class = "NSBox"; title = "Align"; ObjectID = "kvJ-Tj-KMb"; */
 "kvJ-Tj-KMb.title" = "Alinhamento";
@@ -143,11 +136,11 @@
 /* Class = "NSTextFieldCell"; title = "ASS subtitles:"; ObjectID = "mFm-Q6-aja"; */
 "mFm-Q6-aja.title" = "Legandas ASS:";
 
-/* Class = "NSButtonCell"; title = "Choose..."; ObjectID = "nH7-kO-S15"; */
-"nH7-kO-S15.title" = "Escolha...";
+/* Class = "NSButtonCell"; title = "Choose…"; ObjectID = "nH7-kO-S15"; */
+"nH7-kO-S15.title" = "Escolha…";
 
-/* Class = "NSButtonCell"; title = "𝐼"; ObjectID = "pNF-Fw-QtY"; */
-"pNF-Fw-QtY.title" = "𝐼";
+/* Class = "NSButtonCell"; title = "Italic"; ObjectID = "pNF-Fw-QtW"; */
+"pNF-Fw-QtW.title" = "Itálico";
 
 /* Class = "NSBox"; title = "Margin"; ObjectID = "pRe-wv-VVi"; */
 "pRe-wv-VVi.title" = "Margem";
@@ -169,6 +162,9 @@
 
 /* Class = "NSTextFieldCell"; title = "Color:"; ObjectID = "vDc-dw-liI"; */
 "vDc-dw-liI.title" = "Cor:";
+
+/* Class = "NSTextFieldCell"; title = "If enabled, IINA will automatically search online subtitles only for videos without loaded subtitles and longer than 20 mintues."; ObjectID = "vYb-qH-XkH"; */
+"vYb-qH-XkH.title" = "Se ativado, o IINA pesquisará automaticamente legendas on-ine para vídeos sem legendas carregadas e com duração maior que 20 min.";
 
 /* Class = "NSTextFieldCell"; title = "Y:"; ObjectID = "xGf-fF-4Hx"; */
 "xGf-fF-4Hx.title" = "Y:";

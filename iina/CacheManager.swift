@@ -39,13 +39,13 @@ class CacheManager {
 
     let maxCacheSize = Preference.integer(for: .maxThumbnailPreviewCacheSize)
     // if full, delete 50% of max cache
-    let cacheToDelete = maxCacheSize * FileSize.Unit.mb.rawValue / 2
+    let cacheToDelete = maxCacheSize * FloatingPointByteCountFormatter.PrefixFactor.mi.rawValue / 2
 
     // sort by access date
     guard let contents = cacheFolderContents()?.sorted(by: { url1, url2 in
       let date1 = (try? url1.resourceValues(forKeys: [.contentAccessDateKey]).contentAccessDate) ?? Date.distantPast
       let date2 = (try? url2.resourceValues(forKeys: [.contentAccessDateKey]).contentAccessDate) ?? Date.distantPast
-      return date1!.compare(date2!) == .orderedAscending
+      return date1.compare(date2) == .orderedAscending
     }) else { return }
 
     // delete old cache

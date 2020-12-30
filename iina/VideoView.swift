@@ -35,6 +35,11 @@ class VideoView: NSView {
 
   var hasPlayableFiles: Bool = false
 
+  // cached indicator to prevent unnecessary updates of DisplayLink
+  var currentDisplay: UInt32?
+
+  var pendingRedrawAfterEnteringPIP = false;
+
   // MARK: - Attributes
 
   override var mouseDownCanMoveWindow: Bool {
@@ -48,7 +53,6 @@ class VideoView: NSView {
   // MARK: - Init
 
   override init(frame: CGRect) {
-
     super.init(frame: frame)
 
     // set up layer
@@ -62,6 +66,11 @@ class VideoView: NSView {
 
     // dragging init
     registerForDraggedTypes([.nsFilenames, .nsURL, .string])
+  }
+  
+  convenience init(frame: CGRect, player: PlayerCore) {
+    self.init(frame: frame)
+    self.player = player
   }
 
   required init?(coder: NSCoder) {
@@ -85,12 +94,20 @@ class VideoView: NSView {
     uninit()
   }
 
+  override func layout() {
+    super.layout()
+    if pendingRedrawAfterEnteringPIP && superview != nil {
+      videoLayer.draw(forced: true)
+      pendingRedrawAfterEnteringPIP = false
+    }
+  }
+
   override func draw(_ dirtyRect: NSRect) {
     // do nothing
   }
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
-    return true
+    return Preference.bool(for: .videoViewAcceptsFirstMouse)
   }
 
   // MARK: Drag and drop
@@ -119,7 +136,7 @@ class VideoView: NSView {
 
   override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
 
-    guard !playlistShown && hasPlayableFiles else { return super.draggingUpdated(sender) }
+    guard !player.isInMiniPlayer && !playlistShown && hasPlayableFiles else { return super.draggingUpdated(sender) }
 
     func inTriggerArea(_ point: NSPoint?) -> Bool {
       guard let point = point, let frame = player.mainWindow.window?.frame else { return false }
@@ -160,28 +177,81 @@ class VideoView: NSView {
   // MARK: Display link
 
   func startDisplayLink() {
-    guard let window = window else { return }
-    let displayId = UInt32(window.screen!.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as! Int)
-    CVDisplayLinkCreateWithActiveCGDisplays(&link)
+    if link == nil {
+      CVDisplayLinkCreateWithActiveCGDisplays(&link)
+    }
     guard let link = link else {
       Logger.fatal("Cannot Create display link!")
     }
-    CVDisplayLinkSetCurrentCGDisplay(link, displayId)
+    updateDisplayLink()
     CVDisplayLinkSetOutputCallback(link, displayLinkCallback, mutableRawPointerOf(obj: player.mpv))
     CVDisplayLinkStart(link)
   }
 
-  func stopDisplaylink() {
+  func stopDisplayLink() {
     guard let link = link, CVDisplayLinkIsRunning(link) else { return }
     CVDisplayLinkStop(link)
   }
 
-  func updateDisplaylink() {
-    guard let window = window, let link = link else { return }
-    let displayId = UInt32(window.screen!.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as! Int)
+  func updateDisplayLink() {
+    guard let window = window, let link = link, let screen = window.screen else { return }
+    let displayId = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as! UInt32
+    if (currentDisplay == displayId) {
+      return
+    }
+
     CVDisplayLinkSetCurrentCGDisplay(link, displayId)
+    let actualData = CVDisplayLinkGetActualOutputVideoRefreshPeriod(link)
+    let nominalData = CVDisplayLinkGetNominalOutputVideoRefreshPeriod(link)
+    var actualFps: Double = 0;
+
+    if (nominalData.flags & Int32(CVTimeFlags.isIndefinite.rawValue)) < 1 {
+      let nominalFps = Double(nominalData.timeScale) / Double(nominalData.timeValue)
+      
+      if actualData > 0 {
+        actualFps = 1/actualData
+      }
+      
+      if abs(actualFps - nominalFps) > 1 {
+        Logger.log("Falling back to nominal display refresh rate: \(nominalFps) from \(actualFps)")
+        actualFps = nominalFps;
+      }
+    } else {
+      Logger.log("Falling back to standard display refresh rate: 60 from \(actualFps)")
+      actualFps = 60;
+    }
+    player.mpv.setDouble(MPVOption.Video.displayFps, actualFps)
+    
+    setICCProfile(displayId)
+    currentDisplay = displayId
   }
 
+  func setICCProfile(_ displayId: UInt32) {
+    typealias ProfileData = (uuid: CFUUID, profileUrl: URL?)
+    guard let uuid = CGDisplayCreateUUIDFromDisplayID(displayId)?.takeRetainedValue() else { return }
+
+    var argResult: ProfileData = (uuid, nil)
+    withUnsafeMutablePointer(to: &argResult) { data in
+      ColorSyncIterateDeviceProfiles({ (dict: CFDictionary?, ptr: UnsafeMutableRawPointer?) -> Bool in
+        if let info = dict as? [String: Any], let current = info["DeviceProfileIsCurrent"] as? Int {
+          let deviceID = info["DeviceID"] as! CFUUID
+          let ptr = ptr!.bindMemory(to: ProfileData.self, capacity: 1)
+          let uuid = ptr.pointee.uuid
+
+          if current == 1, deviceID == uuid {
+            let profileURL = info["DeviceProfileURL"] as! URL
+            ptr.pointee.profileUrl = profileURL
+            return false
+          }
+        }
+        return true
+      }, data)
+    }
+
+    if let iccProfilePath = argResult.profileUrl?.path, FileManager.default.fileExists(atPath: iccProfilePath) {
+      player.mpv.setString(MPVOption.GPURendererOptions.iccProfile, iccProfilePath)
+    }
+  }
 }
 
 fileprivate func displayLinkCallback(

@@ -74,22 +74,29 @@ struct Preference {
     static let resumeLastPosition = Key("resumeLastPosition")
 
     static let alwaysFloatOnTop = Key("alwaysFloatOnTop")
+    static let alwaysShowOnTopIcon = Key("alwaysShowOnTopIcon")
 
     static let pauseWhenMinimized = Key("pauseWhenMinimized")
     static let pauseWhenInactive = Key("pauseWhenInactive")
     static let playWhenEnteringFullScreen = Key("playWhenEnteringFullScreen")
     static let pauseWhenLeavingFullScreen = Key("pauseWhenLeavingFullScreen")
+    static let pauseWhenGoesToSleep = Key("pauseWhenGoesToSleep")
 
     /** Show chapter pos in progress bar (bool) */
     static let showChapterPos = Key("showChapterPos")
 
+    static let screenshotSaveToFile = Key("screenshotSaveToFile")
+    static let screenshotCopyToClipboard = Key("screenshotCopyToClipboard")
     static let screenshotFolder = Key("screenShotFolder")
     static let screenshotIncludeSubtitle = Key("screenShotIncludeSubtitle")
     static let screenshotFormat = Key("screenShotFormat")
     static let screenshotTemplate = Key("screenShotTemplate")
+    static let screenshotShowPreview = Key("screenshotShowPreview")
 
     static let playlistAutoAdd = Key("playlistAutoAdd")
     static let playlistAutoPlayNext = Key("playlistAutoPlayNext")
+    static let playlistShowMetadata = Key("playlistShowMetadata")
+    static let playlistShowMetadataInMusicMode = Key("playlistShowMetadataInMusicMode")
 
     // UI
 
@@ -131,11 +138,16 @@ struct Preference {
     static let musicModeShowAlbumArt = Key("musicModeShowAlbumArt")
 
     static let displayTimeAndBatteryInFullScreen = Key("displayTimeAndBatteryInFullScreen")
+    
+    static let windowBehaviorWhenPip = Key("windowBehaviorWhenPip")
+    static let pauseWhenPip = Key("pauseWhenPip")
+    static let togglePipByMinimizingWindow = Key("togglePipByMinimizingWindow")
 
     // Codec
 
     static let videoThreads = Key("videoThreads")
     static let hardwareDecoder = Key("hardwareDecoder")
+    static let forceDedicatedGPU = Key("forceDedicatedGPU")
 
     static let audioThreads = Key("audioThreads")
     static let audioLanguage = Key("audioLanguage")
@@ -212,6 +224,7 @@ struct Preference {
     static let verticalScrollAction = Key("verticalScrollAction")
     static let horizontalScrollAction = Key("horizontalScrollAction")
 
+    static let videoViewAcceptsFirstMouse = Key("videoViewAcceptsFirstMouse")
     static let singleClickAction = Key("singleClickAction")
     static let doubleClickAction = Key("doubleClickAction")
     static let rightClickAction = Key("rightClickAction")
@@ -220,6 +233,8 @@ struct Preference {
     static let forceTouchAction = Key("forceTouchAction")
 
     static let showRemainingTime = Key("showRemainingTime")
+    static let timeDisplayPrecision = Key("timeDisplayPrecision")
+    static let touchbarShowRemainingTime = Key("touchbarShowRemainingTime")
 
     static let followGlobalSeekTypeWhenAdjustSlider = Key("followGlobalSeekTypeWhenAdjustSlider")
 
@@ -246,6 +261,8 @@ struct Preference {
     /** Log to log folder (bool) */
     static let enableLogging = Key("enableLogging")
     static let logLevel = Key("logLevel")
+
+    static let displayKeyBindingRawValues = Key("displayKeyBindingRawValues")
 
     /** unused */
     // static let resizeFrameBuffer = Key("resizeFrameBuffer")
@@ -345,6 +362,7 @@ struct Preference {
     case fullscreen
     case pause
     case hideOSC
+    case togglePIP
 
     static var defaultValue = MouseClickAction.none
 
@@ -589,6 +607,18 @@ struct Preference {
       }
     }
   }
+  
+  enum WindowBehaviorWhenPip: Int, InitializingFromKey {
+    case doNothing = 0
+    case hide
+    case minimize
+    
+    static var defaultValue = WindowBehaviorWhenPip.doNothing
+    
+    init?(key: Key) {
+      self.init(rawValue: Preference.integer(for: key))
+    }
+  }
 
   enum ToolBarButton: Int {
     case settings = 0
@@ -656,20 +686,26 @@ struct Preference {
     .useMediaKeys: true,
     .useAppleRemote: false,
     .alwaysFloatOnTop: false,
+    .alwaysShowOnTopIcon: false,
     .blackOutMonitor: false,
     .pauseWhenMinimized: false,
     .pauseWhenInactive: false,
     .pauseWhenLeavingFullScreen: false,
+    .pauseWhenGoesToSleep: true,
     .playWhenEnteringFullScreen: false,
 
     .playlistAutoAdd: true,
     .playlistAutoPlayNext: true,
+    .playlistShowMetadata: true,
+    .playlistShowMetadataInMusicMode: true,
 
     .usePhysicalResolution: true,
     .initialWindowSizePosition: "",
     .resizeWindowTiming: ResizeWindowTiming.onlyWhenOpen.rawValue,
     .resizeWindowOption: ResizeWindowOption.videoSize10.rawValue,
     .showRemainingTime: false,
+    .timeDisplayPrecision: 0,
+    .touchbarShowRemainingTime: true,
     .enableThumbnailPreview: true,
     .maxThumbnailPreviewCacheSize: 500,
     .enableThumbnailForRemoteFiles: false,
@@ -677,9 +713,14 @@ struct Preference {
     .musicModeShowPlaylist: false,
     .musicModeShowAlbumArt: true,
     .displayTimeAndBatteryInFullScreen: false,
+    
+    .windowBehaviorWhenPip: WindowBehaviorWhenPip.doNothing.rawValue,
+    .pauseWhenPip: false,
+    .togglePipByMinimizingWindow: false,
 
     .videoThreads: 0,
     .hardwareDecoder: HardwareDecoderOption.auto.rawValue,
+    .forceDedicatedGPU: false,
     .audioThreads: 0,
     .audioLanguage: "",
     .maxVolume: 100,
@@ -714,7 +755,7 @@ struct Preference {
     .subMarginY: Float(22),
     .subPos: Float(100),
     .subLang: "",
-    .onlineSubSource: OnlineSubtitle.Source.shooter.rawValue,
+    .onlineSubSource: OnlineSubtitle.Source.openSub.rawValue,
     .displayInLetterBox: true,
     .subScaleWithWindow: true,
     .openSubUsername: "",
@@ -726,7 +767,7 @@ struct Preference {
     .enableCache: true,
     .defaultCacheSize: 153600,
     .cacheBufferSize: 153600,
-    .secPrefech: 100,
+    .secPrefech: 36000,
     .userAgent: "",
     .transportRTSPThrough: RTSPTransportation.tcp.rawValue,
     .ytdlEnabled: true,
@@ -741,6 +782,7 @@ struct Preference {
     .useMpvOsd: false,
     .enableLogging: false,
     .logLevel: Logger.Level.debug.rawValue,
+    .displayKeyBindingRawValues: false,
     .userOptions: [],
     .useUserDefinedConfDir: false,
     .userDefinedConfDir: "~/.config/mpv/",
@@ -753,6 +795,7 @@ struct Preference {
     .volumeScrollAmount: 3,
     .verticalScrollAction: ScrollAction.volume.rawValue,
     .horizontalScrollAction: ScrollAction.seek.rawValue,
+    .videoViewAcceptsFirstMouse: false,
     .singleClickAction: MouseClickAction.hideOSC.rawValue,
     .doubleClickAction: MouseClickAction.fullscreen.rawValue,
     .rightClickAction: MouseClickAction.pause.rawValue,
@@ -760,10 +803,13 @@ struct Preference {
     .pinchAction: PinchAction.windowSize.rawValue,
     .forceTouchAction: MouseClickAction.none.rawValue,
 
+    .screenshotSaveToFile: true,
+    .screenshotCopyToClipboard: false,
     .screenshotFolder: "~/Pictures/Screenshots",
     .screenshotIncludeSubtitle: true,
     .screenshotFormat: ScreenshotFormat.png.rawValue,
     .screenshotTemplate: "%F-%n",
+    .screenshotShowPreview: true,
 
     .watchProperties: [],
     .savedVideoFilters: [],
@@ -856,5 +902,5 @@ struct Preference {
   static func `enum`<T: InitializingFromKey>(for key: Key) -> T {
     return T.init(key: key) ?? T.defaultValue
   }
-  
+
 }

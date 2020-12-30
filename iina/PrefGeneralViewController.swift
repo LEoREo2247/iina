@@ -13,15 +13,15 @@ import Sparkle
 class PrefGeneralViewController: PreferenceViewController, PreferenceWindowEmbeddable {
 
   override var nibName: NSNib.Name {
-    get {
-      return NSNib.Name("PrefGeneralViewController")
-    }
+    return NSNib.Name("PrefGeneralViewController")
   }
 
   var preferenceTabTitle: String {
-    get {
-      return NSLocalizedString("preference.general", comment: "General")
-    }
+    return NSLocalizedString("preference.general", comment: "General")
+  }
+
+  var preferenceTabImage: NSImage {
+    return NSImage(named: NSImage.Name("pref_general"))!
   }
 
   override var sectionViews: [NSView] {
@@ -32,7 +32,21 @@ class PrefGeneralViewController: PreferenceViewController, PreferenceWindowEmbed
   @IBOutlet var historyView: NSView!
   @IBOutlet var playlistView: NSView!
   @IBOutlet var screenshotsView: NSView!
-
+  @IBOutlet weak var afterOpenActionBox: NSBox!
+  @IBOutlet weak var pauseActionBox: NSBox!
+  
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    
+    if #available(macOS 10.16, *) {
+      afterOpenActionBox.heightAnchor.constraint(equalToConstant: 42).isActive = true
+      pauseActionBox.heightAnchor.constraint(equalToConstant: 146).isActive = true
+    } else {
+      afterOpenActionBox.heightAnchor.constraint(equalToConstant: 34).isActive = true
+      pauseActionBox.heightAnchor.constraint(equalToConstant: 126).isActive = true
+    }
+  }
+  
   // MARK: - IBAction
 
   @IBAction func chooseScreenshotPathAction(_ sender: AnyObject) {

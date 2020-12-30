@@ -44,6 +44,10 @@ class KeyRecordView: NSView {
     layer?.cornerRadius = 4
   }
 
+  override func updateLayer() {
+    layer?.backgroundColor = NSColor.keyRecordViewBackgroundActive.cgColor
+  }
+  
   override var acceptsFirstResponder: Bool {
     return true
   }
@@ -60,12 +64,18 @@ class KeyRecordView: NSView {
   }
 
   override func resignFirstResponder() -> Bool {
+    let saved = NSAppearance.current
+    NSAppearance.current = self.effectiveAppearance
     layer?.backgroundColor = NSColor.keyRecordViewBackground.cgColor
+    NSAppearance.current = saved
     return true
   }
 
   override func becomeFirstResponder() -> Bool {
+    let saved = NSAppearance.current
+    NSAppearance.current = self.effectiveAppearance
     layer?.backgroundColor = NSColor.keyRecordViewBackgroundActive.cgColor
+    NSAppearance.current = saved
     return true
   }
 

@@ -19,6 +19,10 @@ class PrefCodecViewController: PreferenceViewController, PreferenceWindowEmbedda
     return NSLocalizedString("preference.video_audio", comment: "Codec")
   }
 
+  var preferenceTabImage: NSImage {
+    return NSImage(named: NSImage.Name("pref_av"))!
+  }
+
   override var sectionViews: [NSView] {
     return [sectionVideoView, sectionAudioView]
   }
@@ -30,11 +34,14 @@ class PrefCodecViewController: PreferenceViewController, PreferenceWindowEmbedda
   @IBOutlet weak var spdifDTSBtn: NSButton!
   @IBOutlet weak var spdifDTSHDBtn: NSButton!
   @IBOutlet weak var hwdecDescriptionTextField: NSTextField!
+  @IBOutlet weak var audioLangTokenField: LanguageTokenField!
 
   @IBOutlet weak var audioDevicePopUp: NSPopUpButton!
 
+
   override func viewDidLoad() {
     super.viewDidLoad()
+    audioLangTokenField.stringValue = Preference.string(for: .audioLanguage) ?? ""
     updateHwdecDescription()
   }
 
@@ -80,9 +87,12 @@ class PrefCodecViewController: PreferenceViewController, PreferenceWindowEmbedda
     updateHwdecDescription()
   }
 
+  @IBAction func preferredLanguageAction(_ sender: LanguageTokenField) {
+    Preference.set(sender.stringValue, for: .audioLanguage)
+  }
+
   private func updateHwdecDescription() {
     let hwdec: Preference.HardwareDecoderOption = Preference.enum(for: .hardwareDecoder)
     hwdecDescriptionTextField.stringValue = hwdec.localizedDescription
   }
-
 }

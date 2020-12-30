@@ -10,17 +10,11 @@
 /* Class = "NSButtonCell"; title = "Import an existing config file"; ObjectID = "6cO-C0-33g"; */
 "6cO-C0-33g.title" = "설정 파일 가져오기";
 
+/* Class = "NSTableColumn"; headerCell.title = "Key"; ObjectID = "JwC-60-7Hp"; */
+"JwC-60-7Hp.headerCell.title" = "키";
+
 /* Class = "NSTextFieldCell"; title = "Configuration:"; ObjectID = "au5-6f-s55"; */
 "au5-6f-s55.title" = "설정:";
-
-/* Class = "NSTextFieldCell"; title = "Text Cell"; ObjectID = "aXG-QD-GyW"; */
-"aXG-QD-GyW.title" = "Text Cell";
-
-/* Class = "NSTextFieldCell"; title = "Text Cell"; ObjectID = "c46-i5-iw0"; */
-"c46-i5-iw0.title" = "Text Cell";
-
-/* Class = "NSButtonCell"; title = "Enable Apple Remote support"; ObjectID = "e70-25-5E4"; */
-"e70-25-5E4.title" = "애플 리모트 사용";
 
 /* Class = "NSButtonCell"; title = "Reveal config file in Finder"; ObjectID = "gDo-JL-a9k"; */
 "gDo-JL-a9k.title" = "설정 파일 폴더 보기";
@@ -28,15 +22,8 @@
 /* Class = "NSButtonCell"; title = "Duplicate…"; ObjectID = "gpZ-Rh-DMn"; */
 "gpZ-Rh-DMn.title" = "복제…";
 
-/* Class = "NSTableColumn"; headerCell.title = "Key"; ObjectID = "JwC-60-7Hp"; */
-"JwC-60-7Hp.headerCell.title" = "키";
-
 /* Class = "NSButton"; ibShadowedToolTip = "Show the raw mpv key code and command."; ObjectID = "l2M-TH-eCt"; */
 "l2M-TH-eCt.ibShadowedToolTip" = "mpv 키코드와 명령어 원본보기";
 
-/* Class = "NSBox"; title = "Box"; ObjectID = "mLe-eI-lIk"; */
-"mLe-eI-lIk.title" = "Box";
-
 /* Class = "NSTextFieldCell"; title = "Settings"; ObjectID = "veZ-Si-Hv5"; */
 "veZ-Si-Hv5.title" = "설정";
-
